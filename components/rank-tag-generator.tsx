@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import {useRef, useState, useEffect} from "react"
+import {useRef, useState, useEffect, useCallback} from "react"
 import {
     Download,
     Upload,
@@ -150,7 +150,7 @@ class GIFEncoder {
     }
 }
 
-export default function RankTagGenerator() {
+export default function RankTagGenerator<T>(callback: (args: T) => void, deps: React.DependencyList) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [iconImage, setIconImage] = useState<HTMLImageElement | null>(null)
     const [dimensions, setDimensions] = useState({width: 0, height: 0})
@@ -385,7 +385,7 @@ export default function RankTagGenerator() {
         ctx.closePath()
     }
 
-    const drawShape = (
+    const drawShape = useCallback((
         ctx: CanvasRenderingContext2D,
         x: number,
         y: number,
@@ -399,7 +399,7 @@ export default function RankTagGenerator() {
                 drawRoundedRect(ctx, x, y, width, height, radius)
                 break
             case "pill":
-                drawRoundedRect(ctx, x, y, width, height, 50) // 50% radius makes a pill shape
+                drawRoundedRect(ctx, x, y, width, height, 50)
                 break
             case "hexagon":
                 drawHexagon(ctx, x, y, width, height)
@@ -410,7 +410,7 @@ export default function RankTagGenerator() {
             default:
                 drawRoundedRect(ctx, x, y, width, height, radius)
         }
-    }
+    }, [])
 
     const applyBackgroundPattern = (
         ctx: CanvasRenderingContext2D,
@@ -473,7 +473,7 @@ export default function RankTagGenerator() {
         }
     }
 
-    const updateCanvas = (animationPhase = 0) => {
+    const updateCanvas = useCallback((animationPhase = 0) => {
         const canvas = canvasRef.current
         if (!canvas) return
 
@@ -659,7 +659,7 @@ export default function RankTagGenerator() {
         }
 
         return ctx.getImageData(0, 0, canvasWidth, canvasHeight)
-    }
+    }, [settings, iconImage, drawShape])
 
     const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -670,7 +670,7 @@ export default function RankTagGenerator() {
                 img.onload = () => {
                     setIconImage(img)
                 }
-                img.src = event.target?.result as string
+                img.src = (event.target?.result as string)
                 img.crossOrigin = "anonymous"
             }
             reader.readAsDataURL(file)
@@ -847,20 +847,20 @@ export default function RankTagGenerator() {
 
     useEffect(() => {
         updateCanvas()
-    }, [settings, iconImage, previewMode])
+    }, [settings, iconImage, previewMode, updateCanvas])
 
     useEffect(() => {
         const timer = setTimeout(() => {
             updateCanvas()
         }, 50)
-        return () => clearTimeout(timer)
-    }, [previewMode])
+    return () => clearTimeout(timer)
+    }, [previewMode, updateCanvas])
 
     useEffect(() => {
         updateCanvas()
         setHistory([{...settings}])
         setHistoryIndex(0)
-    }, [])
+    }, [settings, updateCanvas]);
 
     useEffect(() => {
         if (settings.animation === "none") return
@@ -884,7 +884,7 @@ export default function RankTagGenerator() {
         return () => {
             cancelAnimationFrame(animationFrame)
         }
-    }, [settings.animation])
+    }, [settings.animation, updateCanvas])
 
     const getAnimationClass = () => {
         switch (settings.animation) {
@@ -1022,7 +1022,7 @@ export default function RankTagGenerator() {
                                                 <span className="font-medium text-zinc-300">JavaExceptionDE</span>
                                                 <span className="text-xs text-zinc-500">Today at 10:45 AM</span>
                                             </div>
-                                            <p className="text-zinc-400 mt-1">Looks great! Can't wait to see the final
+                                            <p className="text-zinc-400 mt-1">Looks great! Can&#39;t wait to see the final
                                                 version.</p>
                                         </div>
                                     </div>
@@ -1073,7 +1073,7 @@ export default function RankTagGenerator() {
                                             <h4 className="font-medium text-zinc-200 mb-2">New Game Update v2.5 - Patch
                                                 Notes</h4>
                                             <p className="text-zinc-400 text-sm">
-                                                We're excited to announce our latest update with new features and bug
+                                                We&#39;re excited to announce our latest update with new features and bug
                                                 fixes:
                                             </p>
                                             <ul className="list-disc list-inside text-zinc-400 text-sm mt-2 space-y-1">
