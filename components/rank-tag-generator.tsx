@@ -150,7 +150,7 @@ class GIFEncoder {
     }
 }
 
-export default function RankTagGenerator<T>(callback: (args: T) => void, deps: React.DependencyList) {
+export default function RankTagGenerator() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [iconImage, setIconImage] = useState<HTMLImageElement | null>(null)
     const [dimensions, setDimensions] = useState({width: 0, height: 0})
@@ -853,7 +853,7 @@ export default function RankTagGenerator<T>(callback: (args: T) => void, deps: R
         const timer = setTimeout(() => {
             updateCanvas()
         }, 50)
-    return () => clearTimeout(timer)
+        return () => clearTimeout(timer)
     }, [previewMode, updateCanvas])
 
     useEffect(() => {
@@ -1022,7 +1022,8 @@ export default function RankTagGenerator<T>(callback: (args: T) => void, deps: R
                                                 <span className="font-medium text-zinc-300">JavaExceptionDE</span>
                                                 <span className="text-xs text-zinc-500">Today at 10:45 AM</span>
                                             </div>
-                                            <p className="text-zinc-400 mt-1">Looks great! Can&#39;t wait to see the final
+                                            <p className="text-zinc-400 mt-1">Looks great! Can&#39;t wait to see the
+                                                final
                                                 version.</p>
                                         </div>
                                     </div>
@@ -1073,7 +1074,8 @@ export default function RankTagGenerator<T>(callback: (args: T) => void, deps: R
                                             <h4 className="font-medium text-zinc-200 mb-2">New Game Update v2.5 - Patch
                                                 Notes</h4>
                                             <p className="text-zinc-400 text-sm">
-                                                We&#39;re excited to announce our latest update with new features and bug
+                                                We&#39;re excited to announce our latest update with new features and
+                                                bug
                                                 fixes:
                                             </p>
                                             <ul className="list-disc list-inside text-zinc-400 text-sm mt-2 space-y-1">
