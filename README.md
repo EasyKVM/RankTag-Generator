@@ -1,10 +1,10 @@
 # RankTag Generator 🏷️✨
 
 <div align="center">
-  <img src="https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js" alt="Next.js" />
-  <img src="https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react" alt="React" />
-  <img src="https://img.shields.io/badge/Tailwind-3-38B2AC?style=for-the-badge&logo=tailwind-css" alt="Tailwind" />
-  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/npm/v/next?label=Next.js&style=for-the-badge&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/npm/v/react?label=React&style=for-the-badge&logo=react" alt="React" />
+  <img src="https://img.shields.io/npm/v/tailwindcss?label=Tailwind&style=for-the-badge&logo=tailwind-css" alt="Tailwind" />
+  <img src="https://img.shields.io/npm/v/typescript?label=TypeScript&style=for-the-badge&logo=typescript" alt="TypeScript" />
 </div>
 
 <div align="center">
@@ -51,7 +51,7 @@ RankTag Generator is a powerful, modern web application that allows you to creat
 
 ```bash
 # Clone the repository
-git clone https://github.com/NoahLTR/ranktag-generator.git
+git clone https://github.com/EasyKVM/ranktag-generator.git
 
 # Navigate to the project directory
 cd ranktag-generator
