@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import {useRef, useState, useEffect, useCallback} from "react"
+import {useRef, useState, useEffect} from "react"
 import {
     Download,
     Upload,
@@ -63,6 +63,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import {Badge} from "@/components/ui/badge"
+import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion"
 
 type TagSettings = {
     text: string
@@ -164,6 +165,7 @@ export default function RankTagGenerator() {
     const [previewMode, setPreviewMode] = useState<"chat" | "forum" | "game" | "plain">("chat")
     const [isCreatingGif, setIsCreatingGif] = useState(false)
     const [gifProgress, setGifProgress] = useState(0)
+    const [isMobile, setIsMobile] = useState(false)
 
     const [showJsonDialog, setShowJsonDialog] = useState(false)
     const [jsonContent, setJsonContent] = useState("")
@@ -202,6 +204,20 @@ export default function RankTagGenerator() {
         textAlign: "center",
         animation: "none",
     })
+
+    // Check if device is mobile
+    useEffect(() => {
+        const checkIfMobile = () => {
+            setIsMobile(window.innerWidth < 768)
+        }
+
+        checkIfMobile()
+        window.addEventListener("resize", checkIfMobile)
+
+        return () => {
+            window.removeEventListener("resize", checkIfMobile)
+        }
+    }, [])
 
     const updateSetting = <K extends keyof TagSettings>(key: K, value: TagSettings[K]) => {
         if (historyIndex < history.length - 1) {
@@ -385,7 +401,7 @@ export default function RankTagGenerator() {
         ctx.closePath()
     }
 
-    const drawShape = useCallback((
+    const drawShape = (
         ctx: CanvasRenderingContext2D,
         x: number,
         y: number,
@@ -399,7 +415,7 @@ export default function RankTagGenerator() {
                 drawRoundedRect(ctx, x, y, width, height, radius)
                 break
             case "pill":
-                drawRoundedRect(ctx, x, y, width, height, 50)
+                drawRoundedRect(ctx, x, y, width, height, 50) // 50% radius makes a pill shape
                 break
             case "hexagon":
                 drawHexagon(ctx, x, y, width, height)
@@ -410,7 +426,7 @@ export default function RankTagGenerator() {
             default:
                 drawRoundedRect(ctx, x, y, width, height, radius)
         }
-    }, [])
+    }
 
     const applyBackgroundPattern = (
         ctx: CanvasRenderingContext2D,
@@ -473,7 +489,7 @@ export default function RankTagGenerator() {
         }
     }
 
-    const updateCanvas = useCallback((animationPhase = 0) => {
+    const updateCanvas = (animationPhase = 0) => {
         const canvas = canvasRef.current
         if (!canvas) return
 
@@ -482,7 +498,6 @@ export default function RankTagGenerator() {
 
         const fontString = `${settings.fontStyle} ${settings.fontWeight} ${settings.fontSize}px '${settings.fontFamily}', sans-serif`
         ctx.font = fontString
-
         let displayText = settings.text
         if (settings.textTransform === "uppercase") {
             displayText = displayText.toUpperCase()
@@ -659,7 +674,7 @@ export default function RankTagGenerator() {
         }
 
         return ctx.getImageData(0, 0, canvasWidth, canvasHeight)
-    }, [settings, iconImage, drawShape])
+    }
 
     const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -670,7 +685,7 @@ export default function RankTagGenerator() {
                 img.onload = () => {
                     setIconImage(img)
                 }
-                img.src = (event.target?.result as string)
+                img.src = event.target?.result as string
                 img.crossOrigin = "anonymous"
             }
             reader.readAsDataURL(file)
@@ -847,20 +862,20 @@ export default function RankTagGenerator() {
 
     useEffect(() => {
         updateCanvas()
-    }, [settings, iconImage, previewMode, updateCanvas])
+    }, [settings, iconImage, previewMode])
 
     useEffect(() => {
         const timer = setTimeout(() => {
             updateCanvas()
         }, 50)
         return () => clearTimeout(timer)
-    }, [previewMode, updateCanvas])
+    }, [previewMode])
 
     useEffect(() => {
         updateCanvas()
         setHistory([{...settings}])
         setHistoryIndex(0)
-    }, [settings, updateCanvas]);
+    }, [])
 
     useEffect(() => {
         if (settings.animation === "none") return
@@ -884,7 +899,7 @@ export default function RankTagGenerator() {
         return () => {
             cancelAnimationFrame(animationFrame)
         }
-    }, [settings.animation, updateCanvas])
+    }, [settings.animation])
 
     const getAnimationClass = () => {
         switch (settings.animation) {
@@ -899,6 +914,52 @@ export default function RankTagGenerator() {
             default:
                 return ""
         }
+    }
+
+    // Mobile-optimized color picker component
+    const ColorPicker = ({
+                             color,
+                             onChange,
+                             label,
+                             disabled = false,
+                         }: {
+        color: string
+        onChange: (color: string) => void
+        label: string
+        disabled?: boolean
+    }) => {
+        return (
+            <div className="space-y-2">
+                <Label className="text-sm font-medium">{label}</Label>
+                <div className="flex items-center gap-2">
+                    <div
+                        className="w-12 h-12 rounded-md border border-border shadow-sm cursor-pointer"
+                        style={{backgroundColor: color}}
+                        onClick={() => {
+                            if (!disabled) {
+                                const input = document.getElementById(`color-picker-${label.replace(/\s+/g, "-").toLowerCase()}`)
+                                if (input) input.click()
+                            }
+                        }}
+                    />
+                    <Input
+                        id={`color-picker-${label.replace(/\s+/g, "-").toLowerCase()}`}
+                        type="color"
+                        value={color}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="h-0 w-0 opacity-0 absolute"
+                        disabled={disabled}
+                    />
+                    <Input
+                        type="text"
+                        value={color}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="flex-1 h-12 font-mono text-sm"
+                        disabled={disabled}
+                    />
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -931,12 +992,38 @@ export default function RankTagGenerator() {
                     font-style: normal;
                     font-display: swap;
                 }
+
+                /* Mobile optimizations */
+                @media (max-width: 768px) {
+                    .tabs-list {
+                        grid-template-columns: repeat(3, 1fr);
+                    }
+
+                    .tabs-list-item {
+                        font-size: 0.8rem;
+                        padding: 0.5rem 0.25rem;
+                    }
+
+                    .color-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    input[type="color"] {
+                        height: 44px;
+                        width: 44px;
+                    }
+
+                    .touch-target {
+                        min-height: 44px;
+                        min-width: 44px;
+                    }
+                }
             `}</style>
             <div className={`relative transition-all duration-300 ease-in-out ${isExpanded ? "w-full" : "w-auto"}`}>
                 <div
                     className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
                 <div
-                    className="relative bg-gradient-to-b from-card to-card/80 p-6 rounded-lg shadow-xl border border-purple-500/10">
+                    className="relative bg-gradient-to-b from-card to-card/80 p-4 md:p-6 rounded-lg shadow-xl border border-purple-500/10">
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
                             <Badge variant="outline"
@@ -947,7 +1034,7 @@ export default function RankTagGenerator() {
                                 value={previewMode}
                                 onValueChange={(value) => setPreviewMode(value as "chat" | "forum" | "game" | "plain")}
                             >
-                                <SelectTrigger className="h-7 text-xs w-[110px] bg-background/40 border-none">
+                                <SelectTrigger className="h-9 text-xs w-[110px] bg-background/40 border-none">
                                     <SelectValue placeholder="Select mode"/>
                                 </SelectTrigger>
                                 <SelectContent>
@@ -966,9 +1053,9 @@ export default function RankTagGenerator() {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => setIsExpanded(!isExpanded)}
-                                            className="h-8 w-8 bg-background/40 hover:bg-background/60"
+                                            className="h-9 w-9 bg-background/40 hover:bg-background/60 touch-target"
                                         >
-                                            {isExpanded ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}
+                                            {isExpanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -1022,8 +1109,7 @@ export default function RankTagGenerator() {
                                                 <span className="font-medium text-zinc-300">JavaExceptionDE</span>
                                                 <span className="text-xs text-zinc-500">Today at 10:45 AM</span>
                                             </div>
-                                            <p className="text-zinc-400 mt-1">Looks great! Can&#39;t wait to see the
-                                                final
+                                            <p className="text-zinc-400 mt-1">Looks great! Can't wait to see the final
                                                 version.</p>
                                         </div>
                                     </div>
@@ -1074,8 +1160,7 @@ export default function RankTagGenerator() {
                                             <h4 className="font-medium text-zinc-200 mb-2">New Game Update v2.5 - Patch
                                                 Notes</h4>
                                             <p className="text-zinc-400 text-sm">
-                                                We&#39;re excited to announce our latest update with new features and
-                                                bug
+                                                We're excited to announce our latest update with new features and bug
                                                 fixes:
                                             </p>
                                             <ul className="list-disc list-inside text-zinc-400 text-sm mt-2 space-y-1">
@@ -1162,8 +1247,8 @@ export default function RankTagGenerator() {
                         )}
                     </div>
 
-                    <div className="flex items-center justify-between mt-4">
-                        <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-between mt-4 gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Badge variant="outline" className="bg-background/40 text-xs">
                                 {dimensions.width}×{dimensions.height}px
                             </Badge>
@@ -1186,10 +1271,10 @@ export default function RankTagGenerator() {
                                             size="icon"
                                             onClick={createMinecraftJson}
                                             disabled={isLoading}
-                                            className="bg-background/40 hover:bg-background/60"
+                                            className="h-10 w-10 bg-background/40 hover:bg-background/60 touch-target"
                                         >
-                                            {isLoading ? <Loader2 size={16} className="animate-spin"/> :
-                                                <FileJson size={16}/>}
+                                            {isLoading ? <Loader2 size={18} className="animate-spin"/> :
+                                                <FileJson size={18}/>}
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -1202,37 +1287,39 @@ export default function RankTagGenerator() {
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
-                                            className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                                            className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 h-10 touch-target"
                                             disabled={isLoading || isCreatingGif}
                                         >
                                             {isLoading || isCreatingGif ? (
                                                 <>
-                                                    <Loader2 size={16} className="animate-spin mr-2"/>
+                                                    <Loader2 size={18} className="animate-spin mr-2"/>
                                                     {isCreatingGif ? `${gifProgress}%` : ""}
                                                 </>
                                             ) : (
-                                                <Download size={16} className="mr-2"/>
+                                                <Download size={18} className="mr-2"/>
                                             )}
                                             Download
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
-                                        <DropdownMenuItem onClick={handleDownload}>Download as PNG
-                                            (Static)</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={createAnimatedGif}>Export with Animation
-                                            (GIF)</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handleDownload} className="h-10">
+                                            Download as PNG (Static)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={createAnimatedGif} className="h-10">
+                                            Export with Animation (GIF)
+                                        </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             ) : (
                                 <Button
                                     onClick={handleDownload}
-                                    className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                                    className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 h-10 touch-target"
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (
-                                        <Loader2 size={16} className="animate-spin mr-2"/>
+                                        <Loader2 size={18} className="animate-spin mr-2"/>
                                     ) : (
-                                        <Download size={16} className="mr-2"/>
+                                        <Download size={18} className="mr-2"/>
                                     )}
                                     Download
                                 </Button>
@@ -1240,9 +1327,12 @@ export default function RankTagGenerator() {
 
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <Button variant="ghost" size="icon"
-                                            className="bg-background/40 hover:bg-background/60">
-                                        <Save size={16}/>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-10 w-10 bg-background/40 hover:bg-background/60 touch-target"
+                                    >
+                                        <Save size={18}/>
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-md">
@@ -1259,11 +1349,12 @@ export default function RankTagGenerator() {
                                                 placeholder="My awesome template"
                                                 value={templateName}
                                                 onChange={(e) => setTemplateName(e.target.value)}
+                                                className="h-10"
                                             />
                                         </div>
                                     </div>
                                     <DialogFooter>
-                                        <Button type="submit" onClick={saveTemplate}>
+                                        <Button type="submit" onClick={saveTemplate} className="h-10">
                                             Save Template
                                         </Button>
                                     </DialogFooter>
@@ -1276,21 +1367,33 @@ export default function RankTagGenerator() {
 
             {/* Controls */}
             <Card className="w-full border-none shadow-xl bg-card/50 backdrop-blur-sm">
-                <CardContent className="p-6">
+                <CardContent className="p-4 md:p-6">
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" onClick={handleUndo} disabled={!canUndo}>
-                                <Undo size={16}/>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={handleUndo}
+                                disabled={!canUndo}
+                                className="h-10 w-10 touch-target"
+                            >
+                                <Undo size={18}/>
                             </Button>
-                            <Button variant="outline" size="icon" onClick={handleRedo} disabled={!canRedo}>
-                                <Redo size={16}/>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={handleRedo}
+                                disabled={!canRedo}
+                                className="h-10 w-10 touch-target"
+                            >
+                                <Redo size={18}/>
                             </Button>
                         </div>
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="gap-2">
-                                    <Bookmark size={16}/> Templates
+                                <Button variant="outline" className="gap-2 h-10 touch-target">
+                                    <Bookmark size={18}/> Templates
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
@@ -1302,7 +1405,7 @@ export default function RankTagGenerator() {
                                 ) : (
                                     savedTemplates.map((template) => (
                                         <DropdownMenuItem key={template.id}
-                                                          className="flex justify-between items-center">
+                                                          className="flex justify-between items-center h-10">
                                             <button className="flex-1 text-left" onClick={() => loadTemplate(template)}>
                                                 {template.name}
                                             </button>
@@ -1323,7 +1426,7 @@ export default function RankTagGenerator() {
                                 <DropdownMenuSeparator/>
                                 <Dialog>
                                     <DialogTrigger asChild>
-                                        <Button variant="ghost" className="w-full justify-start gap-2 h-8">
+                                        <Button variant="ghost" className="w-full justify-start gap-2 h-10">
                                             <BookmarkPlus size={14}/> Save Current Template
                                         </Button>
                                     </DialogTrigger>
@@ -1341,11 +1444,12 @@ export default function RankTagGenerator() {
                                                     placeholder="My awesome template"
                                                     value={templateName}
                                                     onChange={(e) => setTemplateName(e.target.value)}
+                                                    className="h-10"
                                                 />
                                             </div>
                                         </div>
                                         <DialogFooter>
-                                            <Button type="submit" onClick={saveTemplate}>
+                                            <Button type="submit" onClick={saveTemplate} className="h-10">
                                                 Save Template
                                             </Button>
                                         </DialogFooter>
@@ -1355,787 +1459,1155 @@ export default function RankTagGenerator() {
                         </DropdownMenu>
                     </div>
 
-                    <Tabs defaultValue="basic" className="w-full">
-                        <TabsList className="grid grid-cols-5 mb-6">
-                            <TabsTrigger value="basic">Basic</TabsTrigger>
-                            <TabsTrigger value="style">Style</TabsTrigger>
-                            <TabsTrigger value="effects">Effects</TabsTrigger>
-                            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-                            <TabsTrigger value="presets">Presets</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="basic" className="space-y-6">
-                            {/* Text */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <Label htmlFor="text" className="flex items-center gap-2 text-sm mb-2">
-                                        <Type size={14}/> Text
-                                    </Label>
-                                    <Input
-                                        id="text"
-                                        value={settings.text}
-                                        onChange={(e) => updateSetting("text", e.target.value)}
-                                        placeholder="Write here"
-                                        className="bg-background/50"
-                                    />
-                                </div>
-
-                                {/* Text Transform */}
-                                <div>
-                                    <Label htmlFor="textTransform" className="flex items-center gap-2 text-sm mb-2">
-                                        <Type size={14}/> Text Transform
-                                    </Label>
-                                    <Select
-                                        value={settings.textTransform}
-                                        onValueChange={(value) => updateSetting("textTransform", value)}
-                                    >
-                                        <SelectTrigger id="textTransform" className="bg-background/50">
-                                            <SelectValue placeholder="Select transform"/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">None</SelectItem>
-                                            <SelectItem value="uppercase">UPPERCASE</SelectItem>
-                                            <SelectItem value="lowercase">lowercase</SelectItem>
-                                            <SelectItem value="capitalize">Capitalize</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Text Color and Size */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="textColor" className="flex items-center gap-2 text-sm mb-2">
-                                            <Palette size={14}/> Text Color
-                                        </Label>
-                                        <div className="relative">
-                                            <div
-                                                className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                                <div
-                                                    className="w-6 h-6 rounded-md border border-border shadow-sm"
-                                                    style={{backgroundColor: settings.textColor}}
-                                                ></div>
-                                            </div>
-                                            <div className="flex">
-                                                <Input
-                                                    id="textColor"
-                                                    type="text"
-                                                    value={settings.textColor}
-                                                    onChange={(e) => updateSetting("textColor", e.target.value)}
-                                                    className="h-10 pl-12 pr-24 font-mono text-sm"
-                                                />
-                                                <div className="absolute inset-y-0 right-0 flex items-center">
-                                                    <Input
-                                                        type="color"
-                                                        value={settings.textColor}
-                                                        onChange={(e) => updateSetting("textColor", e.target.value)}
-                                                        className="h-10 w-10 border-0 cursor-pointer"
-                                                        style={{padding: 0}}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="fontSize" className="flex items-center gap-2 text-sm mb-2">
-                                            <Type size={14}/> Text Size (px)
-                                        </Label>
-                                        <Input
-                                            id="fontSize"
-                                            type="number"
-                                            value={settings.fontSize}
-                                            onChange={(e) => updateSetting("fontSize", Number(e.target.value))}
-                                            min={5}
-                                            className="bg-background/50"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Font Style */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="fontWeight" className="flex items-center gap-2 text-sm mb-2">
-                                            <Type size={14}/> Font Weight
-                                        </Label>
-                                        <Select value={settings.fontWeight}
-                                                onValueChange={(value) => updateSetting("fontWeight", value)}>
-                                            <SelectTrigger id="fontWeight" className="bg-background/50">
-                                                <SelectValue placeholder="Select weight"/>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="normal">Normal</SelectItem>
-                                                <SelectItem value="bold">Bold</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="fontStyle" className="flex items-center gap-2 text-sm mb-2">
-                                            <Type size={14}/> Font Style
-                                        </Label>
-                                        <Select value={settings.fontStyle}
-                                                onValueChange={(value) => updateSetting("fontStyle", value)}>
-                                            <SelectTrigger id="fontStyle" className="bg-background/50">
-                                                <SelectValue placeholder="Select style"/>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="normal">Normal</SelectItem>
-                                                <SelectItem value="italic">Italic</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                {/* Icon Upload */}
-                                <div>
-                                    <Label htmlFor="iconUpload" className="flex items-center gap-2 text-sm mb-2">
-                                        <Upload size={14}/> Upload Icon
-                                    </Label>
-                                    <Input
-                                        id="iconUpload"
-                                        type="file"
-                                        onChange={handleIconUpload}
-                                        accept="image/*"
-                                        className="bg-background/50"
-                                    />
-                                </div>
-
-                                {/* Icon Position and Size */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="iconPosition" className="flex items-center gap-2 text-sm mb-2">
-                                            <Layout size={14}/> Icon Position
-                                        </Label>
-                                        <Select
-                                            value={settings.iconPosition}
-                                            onValueChange={(value) => updateSetting("iconPosition", value)}
-                                        >
-                                            <SelectTrigger id="iconPosition" className="bg-background/50">
-                                                <SelectValue placeholder="Select position"/>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="left">Left</SelectItem>
-                                                <SelectItem value="right">Right</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="iconSize" className="flex items-center gap-2 text-sm mb-2">
-                                            <RulerIcon size={14}/> Icon Size (px)
-                                        </Label>
-                                        <Input
-                                            id="iconSize"
-                                            type="number"
-                                            value={settings.iconSize}
-                                            onChange={(e) => updateSetting("iconSize", Number(e.target.value))}
-                                            min={10}
-                                            className="bg-background/50"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <Label htmlFor="fontFamily" className="flex items-center gap-2 text-sm mb-2">
-                                        <Type size={14}/> Font Family
-                                    </Label>
-                                    <Select value={settings.fontFamily}
-                                            onValueChange={(value) => updateSetting("fontFamily", value)}>
-                                        <SelectTrigger id="fontFamily" className="bg-background/50">
-                                            <SelectValue placeholder="Select font"/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Inter">Inter</SelectItem>
-                                            <SelectItem value="Arial">Arial</SelectItem>
-                                            <SelectItem value="Verdana">Verdana</SelectItem>
-                                            <SelectItem value="Georgia">Georgia</SelectItem>
-                                            <SelectItem value="Courier New">Courier New</SelectItem>
-                                            <SelectItem value="Times New Roman">Times New Roman</SelectItem>
-                                            <SelectItem value="Impact">Impact</SelectItem>
-                                            <SelectItem value="Minecraft">Minecraft</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="style" className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Background Color */}
-                                <div>
-                                    <Label htmlFor="bgColor" className="flex items-center gap-2 text-sm mb-2">
-                                        <Palette size={14}/> Background Color
-                                    </Label>
-                                    <div className="relative">
-                                        <div
-                                            className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                            <div
-                                                className="w-6 h-6 rounded-md border border-border shadow-sm"
-                                                style={{backgroundColor: settings.bgColor}}
-                                            ></div>
-                                        </div>
-                                        <div className="flex">
-                                            <Input
-                                                id="bgColor"
-                                                type="text"
-                                                value={settings.bgColor}
-                                                onChange={(e) => updateSetting("bgColor", e.target.value)}
-                                                className="h-10 pl-12 pr-24 font-mono text-sm"
-                                            />
-                                            <div className="absolute inset-y-0 right-0 flex items-center">
-                                                <Input
-                                                    type="color"
-                                                    value={settings.bgColor}
-                                                    onChange={(e) => updateSetting("bgColor", e.target.value)}
-                                                    className="h-10 w-10 border-0 cursor-pointer"
-                                                    style={{padding: 0}}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Gradient */}
-                                <div className="flex flex-col">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <Label htmlFor="gradientCheckbox" className="flex items-center gap-2 text-sm">
-                                            <Sparkles size={14}/> Gradient
-                                        </Label>
-                                        <Switch
-                                            id="gradientCheckbox"
-                                            checked={settings.useGradient}
-                                            onCheckedChange={(value) => updateSetting("useGradient", value)}
-                                        />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="relative">
-                                            <div
-                                                className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                                <div
-                                                    className="w-6 h-6 rounded-md border border-border shadow-sm"
-                                                    style={{backgroundColor: settings.gradientColor}}
-                                                ></div>
-                                            </div>
-                                            <div className="flex">
-                                                <Input
-                                                    id="gradientColor"
-                                                    type="text"
-                                                    value={settings.gradientColor}
-                                                    onChange={(e) => updateSetting("gradientColor", e.target.value)}
-                                                    className="h-10 pl-12 pr-24 font-mono text-sm"
-                                                    disabled={!settings.useGradient}
-                                                />
-                                                <div className="absolute inset-y-0 right-0 flex items-center">
-                                                    <Input
-                                                        type="color"
-                                                        value={settings.gradientColor}
-                                                        onChange={(e) => updateSetting("gradientColor", e.target.value)}
-                                                        className="h-10 w-10 border-0 cursor-pointer"
-                                                        style={{padding: 0}}
-                                                        disabled={!settings.useGradient}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between">
-                                            <Label htmlFor="gradientDirection"
-                                                   className="flex items-center gap-2 text-sm">
-                                                <ArrowDownUp size={14}/> Vertical
+                    {isMobile ? (
+                        // Mobile view with accordion
+                        <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="basic">
+                                <AccordionTrigger className="text-base font-medium py-3">Basic
+                                    Settings</AccordionTrigger>
+                                <AccordionContent className="space-y-6 pt-2">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <Label htmlFor="text" className="flex items-center gap-2 text-sm mb-2">
+                                                <Type size={16}/> Text
                                             </Label>
-                                            <Switch
-                                                id="gradientDirection"
-                                                checked={settings.gradientDirection}
-                                                onCheckedChange={(value) => updateSetting("gradientDirection", value)}
-                                                disabled={!settings.useGradient}
+                                            <Input
+                                                id="text"
+                                                value={settings.text}
+                                                onChange={(e) => updateSetting("text", e.target.value)}
+                                                placeholder="Write here"
+                                                className="bg-background/50 h-10"
                                             />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Border */}
-                                <div className="flex flex-col">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <Label htmlFor="borderCheckbox" className="flex items-center gap-2 text-sm">
-                                            <Layers size={14}/> Border
-                                        </Label>
-                                        <Switch
-                                            id="borderCheckbox"
-                                            checked={settings.addBorder}
-                                            onCheckedChange={(value) => updateSetting("addBorder", value)}
-                                        />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="relative">
-                                            <div
-                                                className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                                <div
-                                                    className="w-6 h-6 rounded-md border border-border shadow-sm"
-                                                    style={{backgroundColor: settings.borderColor}}
-                                                ></div>
-                                            </div>
-                                            <div className="flex">
-                                                <Input
-                                                    id="borderColor"
-                                                    type="text"
-                                                    value={settings.borderColor}
-                                                    onChange={(e) => updateSetting("borderColor", e.target.value)}
-                                                    className="h-10 pl-12 pr-24 font-mono text-sm"
-                                                    disabled={!settings.addBorder}
-                                                />
-                                                <div className="absolute inset-y-0 right-0 flex items-center">
-                                                    <Input
-                                                        type="color"
-                                                        value={settings.borderColor}
-                                                        onChange={(e) => updateSetting("borderColor", e.target.value)}
-                                                        className="h-10 w-10 border-0 cursor-pointer"
-                                                        style={{padding: 0}}
-                                                        disabled={!settings.addBorder}
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
 
                                         <div>
+                                            <Label htmlFor="textTransform"
+                                                   className="flex items-center gap-2 text-sm mb-2">
+                                                <Type size={16}/> Text Transform
+                                            </Label>
+                                            <Select
+                                                value={settings.textTransform}
+                                                onValueChange={(value) => updateSetting("textTransform", value)}
+                                            >
+                                                <SelectTrigger id="textTransform" className="bg-background/50 h-10">
+                                                    <SelectValue placeholder="Select transform"/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None</SelectItem>
+                                                    <SelectItem value="uppercase">UPPERCASE</SelectItem>
+                                                    <SelectItem value="lowercase">lowercase</SelectItem>
+                                                    <SelectItem value="capitalize">Capitalize</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <ColorPicker
+                                            color={settings.textColor}
+                                            onChange={(color) => updateSetting("textColor", color)}
+                                            label="Text Color"
+                                        />
+
+                                        <div>
+                                            <Label htmlFor="fontSize" className="flex items-center gap-2 text-sm mb-2">
+                                                <Type size={16}/> Text Size (px)
+                                            </Label>
                                             <Input
-                                                id="borderWidth"
+                                                id="fontSize"
                                                 type="number"
-                                                value={settings.borderWidth}
-                                                onChange={(e) => updateSetting("borderWidth", Number(e.target.value))}
-                                                min={0}
-                                                className="bg-background/50"
-                                                disabled={!settings.addBorder}
-                                                placeholder="Border width"
+                                                value={settings.fontSize}
+                                                onChange={(e) => updateSetting("fontSize", Number(e.target.value))}
+                                                min={5}
+                                                className="bg-background/50 h-10"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="fontFamily"
+                                                   className="flex items-center gap-2 text-sm mb-2">
+                                                <Type size={16}/> Font Family
+                                            </Label>
+                                            <Select value={settings.fontFamily}
+                                                    onValueChange={(value) => updateSetting("fontFamily", value)}>
+                                                <SelectTrigger id="fontFamily" className="bg-background/50 h-10">
+                                                    <SelectValue placeholder="Select font"/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Inter">Inter</SelectItem>
+                                                    <SelectItem value="Arial">Arial</SelectItem>
+                                                    <SelectItem value="Verdana">Verdana</SelectItem>
+                                                    <SelectItem value="Georgia">Georgia</SelectItem>
+                                                    <SelectItem value="Courier New">Courier New</SelectItem>
+                                                    <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+                                                    <SelectItem value="Impact">Impact</SelectItem>
+                                                    <SelectItem value="Minecraft">Minecraft</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="iconUpload"
+                                                   className="flex items-center gap-2 text-sm mb-2">
+                                                <Upload size={16}/> Upload Icon
+                                            </Label>
+                                            <Input
+                                                id="iconUpload"
+                                                type="file"
+                                                onChange={handleIconUpload}
+                                                accept="image/*"
+                                                className="bg-background/50 h-10"
                                             />
                                         </div>
                                     </div>
-                                </div>
+                                </AccordionContent>
+                            </AccordionItem>
 
-                                {/* Corner Radius */}
-                                <div>
-                                    <Label htmlFor="cornerRadius"
-                                           className="flex items-center justify-between text-sm mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <RulerIcon size={14}/> Corner Radius
+                            <AccordionItem value="style">
+                                <AccordionTrigger className="text-base font-medium py-3">Style
+                                    Settings</AccordionTrigger>
+                                <AccordionContent className="space-y-6 pt-2">
+                                    <div className="space-y-4">
+                                        <ColorPicker
+                                            color={settings.bgColor}
+                                            onChange={(color) => updateSetting("bgColor", color)}
+                                            label="Background Color"
+                                        />
+
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label htmlFor="gradientCheckbox"
+                                                   className="flex items-center gap-2 text-sm">
+                                                <Sparkles size={16}/> Gradient
+                                            </Label>
+                                            <Switch
+                                                id="gradientCheckbox"
+                                                checked={settings.useGradient}
+                                                onCheckedChange={(value) => updateSetting("useGradient", value)}
+                                            />
                                         </div>
-                                        <span className="text-muted-foreground">{settings.cornerRadius}%</span>
-                                    </Label>
-                                    <Slider
-                                        id="cornerRadius"
-                                        value={[settings.cornerRadius]}
-                                        onValueChange={(value) => updateSetting("cornerRadius", value[0])}
-                                        min={0}
-                                        max={50}
-                                        step={1}
-                                        className="mt-2"
-                                    />
-                                </div>
 
-                                {/* Image Height */}
-                                <div>
-                                    <Label htmlFor="imageHeight" className="flex items-center gap-2 text-sm mb-2">
-                                        <RulerIcon size={14}/> Image Height (px)
-                                    </Label>
-                                    <Input
-                                        id="imageHeight"
-                                        type="number"
-                                        value={settings.imageHeight}
-                                        onChange={(e) => updateSetting("imageHeight", Number(e.target.value))}
-                                        min={10}
-                                        className="bg-background/50"
-                                    />
-                                </div>
+                                        {settings.useGradient && (
+                                            <>
+                                                <ColorPicker
+                                                    color={settings.gradientColor}
+                                                    onChange={(color) => updateSetting("gradientColor", color)}
+                                                    label="Gradient Color"
+                                                />
 
-                                {/* Padding */}
-                                <div>
-                                    <Label htmlFor="padding" className="flex items-center gap-2 text-sm mb-2">
-                                        <RulerIcon size={14}/> Image Padding (px)
-                                    </Label>
-                                    <Input
-                                        id="padding"
-                                        type="number"
-                                        value={settings.padding}
-                                        onChange={(e) => updateSetting("padding", Number(e.target.value))}
-                                        min={0}
-                                        className="bg-background/50"
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="tagShape" className="flex items-center gap-2 text-sm mb-2">
-                                        <Layout size={14}/> Tag Shape
-                                    </Label>
-                                    <Select
-                                        value={settings.tagShape}
-                                        onValueChange={(value: "rectangle" | "pill" | "hexagon" | "diamond") =>
-                                            updateSetting("tagShape", value)
-                                        }
-                                    >
-                                        <SelectTrigger id="tagShape" className="bg-background/50">
-                                            <SelectValue placeholder="Select shape"/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="rectangle">Rectangle</SelectItem>
-                                            <SelectItem value="pill">Pill</SelectItem>
-                                            <SelectItem value="hexagon">Hexagon</SelectItem>
-                                            <SelectItem value="diamond">Diamond</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label htmlFor="backgroundPattern" className="flex items-center gap-2 text-sm mb-2">
-                                        <Layout size={14}/> Background Pattern
-                                    </Label>
-                                    <Select
-                                        value={settings.backgroundPattern}
-                                        onValueChange={(value) => updateSetting("backgroundPattern", value)}
-                                    >
-                                        <SelectTrigger id="backgroundPattern" className="bg-background/50">
-                                            <SelectValue placeholder="Select pattern"/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">None</SelectItem>
-                                            <SelectItem value="dots">Dots</SelectItem>
-                                            <SelectItem value="lines">Lines</SelectItem>
-                                            <SelectItem value="grid">Grid</SelectItem>
-                                            <SelectItem value="diagonal">Diagonal</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </TabsContent>
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor="gradientDirection"
+                                                           className="flex items-center gap-2 text-sm">
+                                                        <ArrowDownUp size={16}/> Vertical Gradient
+                                                    </Label>
+                                                    <Switch
+                                                        id="gradientDirection"
+                                                        checked={settings.gradientDirection}
+                                                        onCheckedChange={(value) => updateSetting("gradientDirection", value)}
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
 
-                        <TabsContent value="effects" className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Shadow */}
-                                <div className="flex flex-col">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <Label htmlFor="shadowCheckbox" className="flex items-center gap-2 text-sm">
-                                            <Layers size={14}/> Shadow
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label htmlFor="borderCheckbox" className="flex items-center gap-2 text-sm">
+                                                <Layers size={16}/> Border
+                                            </Label>
+                                            <Switch
+                                                id="borderCheckbox"
+                                                checked={settings.addBorder}
+                                                onCheckedChange={(value) => updateSetting("addBorder", value)}
+                                            />
+                                        </div>
+
+                                        {settings.addBorder && (
+                                            <>
+                                                <ColorPicker
+                                                    color={settings.borderColor}
+                                                    onChange={(color) => updateSetting("borderColor", color)}
+                                                    label="Border Color"
+                                                />
+
+                                                <div>
+                                                    <Label htmlFor="borderWidth"
+                                                           className="flex items-center gap-2 text-sm mb-2">
+                                                        <RulerIcon size={16}/> Border Width (px)x)
+                                                    </Label>
+                                                    <Input
+                                                        id="borderWidth"
+                                                        type="number"
+                                                        value={settings.borderWidth}
+                                                        onChange={(e) => updateSetting("borderWidth", Number(e.target.value))}
+                                                        min={0}
+                                                        className="bg-background/50 h-10"
+                                                        placeholder="Border width"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+
+                                        <div>
+                                            <Label htmlFor="tagShape" className="flex items-center gap-2 text-sm mb-2">
+                                                <Layout size={16}/> Tag Shape
+                                            </Label>
+                                            <Select
+                                                value={settings.tagShape}
+                                                onValueChange={(value: "rectangle" | "pill" | "hexagon" | "diamond") =>
+                                                    updateSetting("tagShape", value)
+                                                }
+                                            >
+                                                <SelectTrigger id="tagShape" className="bg-background/50 h-10">
+                                                    <SelectValue placeholder="Select shape"/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="rectangle">Rectangle</SelectItem>
+                                                    <SelectItem value="pill">Pill</SelectItem>
+                                                    <SelectItem value="hexagon">Hexagon</SelectItem>
+                                                    <SelectItem value="diamond">Diamond</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="cornerRadius"
+                                                   className="flex items-center justify-between text-sm mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <RulerIcon size={16}/> Corner Radius
+                                                </div>
+                                                <span className="text-muted-foreground">{settings.cornerRadius}%</span>
+                                            </Label>
+                                            <Slider
+                                                id="cornerRadius"
+                                                value={[settings.cornerRadius]}
+                                                onValueChange={(value) => updateSetting("cornerRadius", value[0])}
+                                                min={0}
+                                                max={50}
+                                                step={1}
+                                                className="mt-2"
+                                            />
+                                        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="effects">
+                                <AccordionTrigger className="text-base font-medium py-3">Effects</AccordionTrigger>
+                                <AccordionContent className="space-y-6 pt-2">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label htmlFor="shadowCheckbox" className="flex items-center gap-2 text-sm">
+                                                <Layers size={16}/> Shadow
+                                            </Label>
+                                            <Switch
+                                                id="shadowCheckbox"
+                                                checked={settings.shadow}
+                                                onCheckedChange={(value) => updateSetting("shadow", value)}
+                                            />
+                                        </div>
+
+                                        {settings.shadow && (
+                                            <>
+                                                <ColorPicker
+                                                    color={
+                                                        settings.shadowColor.startsWith("rgba")
+                                                            ? `#${Number.parseInt(
+                                                                settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[1] || "0",
+                                                            )
+                                                                .toString(16)
+                                                                .padStart(2, "0")}${Number.parseInt(
+                                                                settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[2] || "0",
+                                                            )
+                                                                .toString(16)
+                                                                .padStart(2, "0")}${Number.parseInt(
+                                                                settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[3] || "0",
+                                                            )
+                                                                .toString(16)
+                                                                .padStart(2, "0")}`
+                                                            : settings.shadowColor
+                                                    }
+                                                    onChange={(color) => {
+                                                        const hex = color
+                                                        const r = Number.parseInt(hex.slice(1, 3), 16)
+                                                        const g = Number.parseInt(hex.slice(3, 5), 16)
+                                                        const b = Number.parseInt(hex.slice(5, 7), 16)
+                                                        updateSetting("shadowColor", `rgba(${r},${g},${b},0.5)`)
+                                                    }}
+                                                    label="Shadow Color"
+                                                />
+
+                                                <div>
+                                                    <Label htmlFor="shadowBlur"
+                                                           className="flex items-center justify-between text-sm mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <RulerIcon size={16}/> Shadow Blur
+                                                        </div>
+                                                        <span
+                                                            className="text-muted-foreground">{settings.shadowBlur}px</span>
+                                                    </Label>
+                                                    <Slider
+                                                        id="shadowBlur"
+                                                        value={[settings.shadowBlur]}
+                                                        onValueChange={(value) => updateSetting("shadowBlur", value[0])}
+                                                        min={0}
+                                                        max={20}
+                                                        step={1}
+                                                        className="mt-2"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+
+                                        <div>
+                                            <Label htmlFor="animation" className="flex items-center gap-2 text-sm mb-2">
+                                                <Sparkles size={16}/> Animation Effect
+                                            </Label>
+                                            <Select
+                                                value={settings.animation}
+                                                onValueChange={(value: "none" | "pulse" | "bounce" | "shake" | "glow") =>
+                                                    updateSetting("animation", value)
+                                                }
+                                            >
+                                                <SelectTrigger id="animation" className="bg-background/50 h-10">
+                                                    <SelectValue placeholder="Select animation"/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None</SelectItem>
+                                                    <SelectItem value="pulse">Pulse</SelectItem>
+                                                    <SelectItem value="bounce">Bounce</SelectItem>
+                                                    <SelectItem value="shake">Shake</SelectItem>
+                                                    <SelectItem value="glow">Glow</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="presets">
+                                <AccordionTrigger className="text-base font-medium py-3">Presets</AccordionTrigger>
+                                <AccordionContent className="space-y-6 pt-2">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {presets.map((preset, index) => (
+                                            <div
+                                                key={index}
+                                                className="border border-border rounded-lg p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                                                onClick={() => applyPreset(preset)}
+                                            >
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div
+                                                        className="w-8 h-8 rounded-md"
+                                                        style={{
+                                                            background: preset.useGradient
+                                                                ? `linear-gradient(to right, ${preset.bgColor}, ${preset.gradientColor})`
+                                                                : preset.bgColor,
+                                                            border: preset.addBorder ? `2px solid ${preset.borderColor}` : "none",
+                                                            boxShadow: preset.shadow ? `0 0 8px ${preset.shadowColor || "rgba(0,0,0,0.5)"}` : "none",
+                                                        }}
+                                                    />
+                                                    <h3 className="font-medium text-sm">{preset.name}</h3>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    ) : (
+                        // Desktop view with tabs
+                        <Tabs defaultValue="basic" className="w-full">
+                            <TabsList className="grid grid-cols-5 mb-6 tabs-list">
+                                <TabsTrigger value="basic" className="tabs-list-item">
+                                    Basic
+                                </TabsTrigger>
+                                <TabsTrigger value="style" className="tabs-list-item">
+                                    Style
+                                </TabsTrigger>
+                                <TabsTrigger value="effects" className="tabs-list-item">
+                                    Effects
+                                </TabsTrigger>
+                                <TabsTrigger value="advanced" className="tabs-list-item">
+                                    Advanced
+                                </TabsTrigger>
+                                <TabsTrigger value="presets" className="tabs-list-item">
+                                    Presets
+                                </TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="basic" className="space-y-6">
+                                {/* Text */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 color-grid">
+                                    <div>
+                                        <Label htmlFor="text" className="flex items-center gap-2 text-sm mb-2">
+                                            <Type size={14}/> Text
                                         </Label>
-                                        <Switch
-                                            id="shadowCheckbox"
-                                            checked={settings.shadow}
-                                            onCheckedChange={(value) => updateSetting("shadow", value)}
+                                        <Input
+                                            id="text"
+                                            value={settings.text}
+                                            onChange={(e) => updateSetting("text", e.target.value)}
+                                            placeholder="Write here"
+                                            className="bg-background/50 h-10"
                                         />
                                     </div>
 
+                                    {/* Text Transform */}
+                                    <div>
+                                        <Label htmlFor="textTransform" className="flex items-center gap-2 text-sm mb-2">
+                                            <Type size={14}/> Text Transform
+                                        </Label>
+                                        <Select
+                                            value={settings.textTransform}
+                                            onValueChange={(value) => updateSetting("textTransform", value)}
+                                        >
+                                            <SelectTrigger id="textTransform" className="bg-background/50 h-10">
+                                                <SelectValue placeholder="Select transform"/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
+                                                <SelectItem value="uppercase">UPPERCASE</SelectItem>
+                                                <SelectItem value="lowercase">lowercase</SelectItem>
+                                                <SelectItem value="capitalize">Capitalize</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {/* Text Color and Size */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="relative">
-                                            <Label htmlFor="shadowColor"
-                                                   className="text-xs text-muted-foreground mb-1 block">
-                                                Shadow Color
+                                        <div>
+                                            <Label htmlFor="textColor" className="flex items-center gap-2 text-sm mb-2">
+                                                <Palette size={14}/> Text Color
                                             </Label>
-                                            <div className="flex items-center">
+                                            <div className="relative">
                                                 <div
                                                     className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                                     <div
                                                         className="w-6 h-6 rounded-md border border-border shadow-sm"
-                                                        style={{
-                                                            backgroundColor: settings.shadowColor.startsWith("rgba")
-                                                                ? `rgba(${settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[1]}, 
-                                                           ${settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[2]}, 
-                                                           ${settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[3]}, 1)`
-                                                                : settings.shadowColor,
-                                                        }}
+                                                        style={{backgroundColor: settings.textColor}}
                                                     ></div>
                                                 </div>
-                                                <div className="flex w-full">
+                                                <div className="flex">
                                                     <Input
-                                                        id="shadowColor"
+                                                        id="textColor"
                                                         type="text"
-                                                        value={settings.shadowColor}
-                                                        onChange={(e) => updateSetting("shadowColor", e.target.value)}
+                                                        value={settings.textColor}
+                                                        onChange={(e) => updateSetting("textColor", e.target.value)}
                                                         className="h-10 pl-12 pr-24 font-mono text-sm"
-                                                        disabled={!settings.shadow}
                                                     />
                                                     <div className="absolute inset-y-0 right-0 flex items-center">
                                                         <Input
                                                             type="color"
-                                                            value={
-                                                                settings.shadowColor.startsWith("rgba")
-                                                                    ? `#${Number.parseInt(
-                                                                        settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[1] ||
-                                                                        "0",
-                                                                    )
-                                                                        .toString(16)
-                                                                        .padStart(2, "0")}${Number.parseInt(
-                                                                        settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[2] ||
-                                                                        "0",
-                                                                    )
-                                                                        .toString(16)
-                                                                        .padStart(2, "0")}${Number.parseInt(
-                                                                        settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[3] ||
-                                                                        "0",
-                                                                    )
-                                                                        .toString(16)
-                                                                        .padStart(2, "0")}`
-                                                                    : settings.shadowColor
-                                                            }
-                                                            onChange={(e) => {
-                                                                const hex = e.target.value
-                                                                const r = Number.parseInt(hex.slice(1, 3), 16)
-                                                                const g = Number.parseInt(hex.slice(3, 5), 16)
-                                                                const b = Number.parseInt(hex.slice(5, 7), 16)
-                                                                updateSetting("shadowColor", `rgba(${r},${g},${b},0.5)`)
-                                                            }}
+                                                            value={settings.textColor}
+                                                            onChange={(e) => updateSetting("textColor", e.target.value)}
                                                             className="h-10 w-10 border-0 cursor-pointer"
                                                             style={{padding: 0}}
-                                                            disabled={!settings.shadow}
                                                         />
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-
                                         <div>
-                                            <Label htmlFor="shadowBlur"
-                                                   className="text-xs text-muted-foreground mb-1 block">
-                                                Blur: {settings.shadowBlur}px
+                                            <Label htmlFor="fontSize" className="flex items-center gap-2 text-sm mb-2">
+                                                <Type size={14}/> Text Size (px)
                                             </Label>
-                                            <Slider
-                                                id="shadowBlur"
-                                                value={[settings.shadowBlur]}
-                                                onValueChange={(value) => updateSetting("shadowBlur", value[0])}
-                                                min={0}
-                                                max={20}
-                                                step={1}
-                                                disabled={!settings.shadow}
+                                            <Input
+                                                id="fontSize"
+                                                type="number"
+                                                value={settings.fontSize}
+                                                onChange={(e) => updateSetting("fontSize", Number(e.target.value))}
+                                                min={5}
+                                                className="bg-background/50 h-10"
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4 mt-4">
+                                    {/* Font Style */}
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <Label htmlFor="shadowOffsetX"
-                                                   className="text-xs text-muted-foreground mb-1 block">
-                                                Offset X: {settings.shadowOffsetX}px
+                                            <Label htmlFor="fontWeight"
+                                                   className="flex items-center gap-2 text-sm mb-2">
+                                                <Type size={14}/> Font Weight
                                             </Label>
-                                            <Slider
-                                                id="shadowOffsetX"
-                                                value={[settings.shadowOffsetX]}
-                                                onValueChange={(value) => updateSetting("shadowOffsetX", value[0])}
-                                                min={-10}
-                                                max={10}
-                                                step={1}
-                                                disabled={!settings.shadow}
+                                            <Select value={settings.fontWeight}
+                                                    onValueChange={(value) => updateSetting("fontWeight", value)}>
+                                                <SelectTrigger id="fontWeight" className="bg-background/50 h-10">
+                                                    <SelectValue placeholder="Select weight"/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="normal">Normal</SelectItem>
+                                                    <SelectItem value="bold">Bold</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="fontStyle" className="flex items-center gap-2 text-sm mb-2">
+                                                <Type size={14}/> Font Style
+                                            </Label>
+                                            <Select value={settings.fontStyle}
+                                                    onValueChange={(value) => updateSetting("fontStyle", value)}>
+                                                <SelectTrigger id="fontStyle" className="bg-background/50 h-10">
+                                                    <SelectValue placeholder="Select style"/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="normal">Normal</SelectItem>
+                                                    <SelectItem value="italic">Italic</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    {/* Icon Upload */}
+                                    <div>
+                                        <Label htmlFor="iconUpload" className="flex items-center gap-2 text-sm mb-2">
+                                            <Upload size={14}/> Upload Icon
+                                        </Label>
+                                        <Input
+                                            id="iconUpload"
+                                            type="file"
+                                            onChange={handleIconUpload}
+                                            accept="image/*"
+                                            className="bg-background/50 h-10"
+                                        />
+                                    </div>
+
+                                    {/* Icon Position and Size */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="iconPosition"
+                                                   className="flex items-center gap-2 text-sm mb-2">
+                                                <Layout size={14}/> Icon Position
+                                            </Label>
+                                            <Select
+                                                value={settings.iconPosition}
+                                                onValueChange={(value) => updateSetting("iconPosition", value)}
+                                            >
+                                                <SelectTrigger id="iconPosition" className="bg-background/50 h-10">
+                                                    <SelectValue placeholder="Select position"/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="left">Left</SelectItem>
+                                                    <SelectItem value="right">Right</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="iconSize" className="flex items-center gap-2 text-sm mb-2">
+                                                <RulerIcon size={14}/> Icon Size (px)
+                                            </Label>
+                                            <Input
+                                                id="iconSize"
+                                                type="number"
+                                                value={settings.iconSize}
+                                                onChange={(e) => updateSetting("iconSize", Number(e.target.value))}
+                                                min={10}
+                                                className="bg-background/50 h-10"
                                             />
                                         </div>
-
-                                        <div>
-                                            <Label htmlFor="shadowOffsetY"
-                                                   className="text-xs text-muted-foreground mb-1 block">
-                                                Offset Y: {settings.shadowOffsetY}px
-                                            </Label>
-                                            <Slider
-                                                id="shadowOffsetY"
-                                                value={[settings.shadowOffsetY]}
-                                                onValueChange={(value) => updateSetting("shadowOffsetY", value[0])}
-                                                min={-10}
-                                                max={10}
-                                                step={1}
-                                                disabled={!settings.shadow}
-                                            />
-                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="fontFamily" className="flex items-center gap-2 text-sm mb-2">
+                                            <Type size={14}/> Font Family
+                                        </Label>
+                                        <Select value={settings.fontFamily}
+                                                onValueChange={(value) => updateSetting("fontFamily", value)}>
+                                            <SelectTrigger id="fontFamily" className="bg-background/50 h-10">
+                                                <SelectValue placeholder="Select font"/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Inter">Inter</SelectItem>
+                                                <SelectItem value="Arial">Arial</SelectItem>
+                                                <SelectItem value="Verdana">Verdana</SelectItem>
+                                                <SelectItem value="Georgia">Georgia</SelectItem>
+                                                <SelectItem value="Courier New">Courier New</SelectItem>
+                                                <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+                                                <SelectItem value="Impact">Impact</SelectItem>
+                                                <SelectItem value="Minecraft">Minecraft</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
+                            </TabsContent>
 
-                                <div className="bg-accent/30 rounded-lg p-4">
-                                    <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                                        <Sparkles size={16}/> Effect Tips
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground mb-3">
-                                        Shadows can add depth and make your tag stand out. Try combining shadows with
-                                        gradients for a more
-                                        professional look.
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-auto py-1 text-xs"
-                                            onClick={() => {
-                                                updateSetting("shadow", true)
-                                                updateSetting("shadowColor", "rgba(0,0,0,0.5)")
-                                                updateSetting("shadowBlur", 4)
-                                                updateSetting("shadowOffsetX", 2)
-                                                updateSetting("shadowOffsetY", 2)
-                                            }}
-                                        >
-                                            Apply Classic Shadow
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-auto py-1 text-xs"
-                                            onClick={() => {
-                                                updateSetting("shadow", true)
-                                                updateSetting("shadowColor", "rgba(124,58,237,0.5)")
-                                                updateSetting("shadowBlur", 8)
-                                                updateSetting("shadowOffsetX", 0)
-                                                updateSetting("shadowOffsetY", 0)
-                                            }}
-                                        >
-                                            Apply Glow Effect
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </TabsContent>
-                        <TabsContent value="advanced" className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Text Alignment */}
-                                <div>
-                                    <Label htmlFor="textAlign" className="flex items-center gap-2 text-sm mb-2">
-                                        <Type size={14}/> Text Alignment
-                                    </Label>
-                                    <Select
-                                        value={settings.textAlign}
-                                        onValueChange={(value: "left" | "center" | "right") => updateSetting("textAlign", value)}
-                                    >
-                                        <SelectTrigger id="textAlign" className="bg-background/50">
-                                            <SelectValue placeholder="Select alignment"/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="left">Left</SelectItem>
-                                            <SelectItem value="center">Center</SelectItem>
-                                            <SelectItem value="right">Right</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Letter Spacing */}
-                                <div>
-                                    <Label htmlFor="letterSpacing"
-                                           className="flex items-center justify-between text-sm mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <Type size={14}/> Letter Spacing
-                                        </div>
-                                        <span className="text-muted-foreground">{settings.letterSpacing}</span>
-                                    </Label>
-                                    <Slider
-                                        id="letterSpacing"
-                                        value={[settings.letterSpacing]}
-                                        onValueChange={(value) => updateSetting("letterSpacing", value[0])}
-                                        min={0}
-                                        max={10}
-                                        step={1}
-                                        className="mt-2"
-                                    />
-                                </div>
-
-                                {/* Animation */}
-                                <div>
-                                    <Label htmlFor="animation" className="flex items-center gap-2 text-sm mb-2">
-                                        <Sparkles size={14}/> Animation Effect
-                                    </Label>
-                                    <Select
-                                        value={settings.animation}
-                                        onValueChange={(value: "none" | "pulse" | "bounce" | "shake" | "glow") =>
-                                            updateSetting("animation", value)
-                                        }
-                                    >
-                                        <SelectTrigger id="animation" className="bg-background/50">
-                                            <SelectValue placeholder="Select animation"/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">None</SelectItem>
-                                            <SelectItem value="pulse">Pulse</SelectItem>
-                                            <SelectItem value="bounce">Bounce</SelectItem>
-                                            <SelectItem value="shake">Shake</SelectItem>
-                                            <SelectItem value="glow">Glow</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="bg-accent/30 rounded-lg p-4">
-                                    <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                                        <Sparkles size={16}/> Advanced Tips
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground mb-3">
-                                        Animations can make your tag stand out in dynamic environments. Letter spacing
-                                        can improve
-                                        readability for certain fonts and styles.
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-auto py-1 text-xs"
-                                            onClick={() => {
-                                                updateSetting("animation", "glow")
-                                                updateSetting("shadow", true)
-                                                updateSetting("shadowColor", "rgba(124,58,237,0.5)")
-                                                updateSetting("shadowBlur", 8)
-                                            }}
-                                        >
-                                            Apply Glow Animation
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-auto py-1 text-xs"
-                                            onClick={() => {
-                                                updateSetting("letterSpacing", 3)
-                                                updateSetting("textTransform", "uppercase")
-                                            }}
-                                        >
-                                            Apply Spaced Text
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="presets" className="space-y-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                                {presets.map((preset, index) => (
-                                    <div
-                                        key={index}
-                                        className="border border-border rounded-lg p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                                        onClick={() => applyPreset(preset)}
-                                    >
-                                        <div className="flex items-center gap-3 mb-3">
+                            <TabsContent value="style" className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 color-grid">
+                                    {/* Background Color */}
+                                    <div>
+                                        <Label htmlFor="bgColor" className="flex items-center gap-2 text-sm mb-2">
+                                            <Palette size={14}/> Background Color
+                                        </Label>
+                                        <div className="relative">
                                             <div
-                                                className="w-8 h-8 rounded-md"
-                                                style={{
-                                                    background: preset.useGradient
-                                                        ? `linear-gradient(to right, ${preset.bgColor}, ${preset.gradientColor})`
-                                                        : preset.bgColor,
-                                                    border: preset.addBorder ? `2px solid ${preset.borderColor}` : "none",
-                                                    boxShadow: preset.shadow ? `0 0 8px ${preset.shadowColor || "rgba(0,0,0,0.5)"}` : "none",
-                                                }}
-                                            />
-                                            <h3 className="font-medium">{preset.name}</h3>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            <Badge variant="outline" className="text-xs bg-background/40">
-                                                {preset.useGradient ? "Gradient" : "Solid"}
-                                            </Badge>
-                                            {preset.addBorder && (
-                                                <Badge variant="outline" className="text-xs bg-background/40">
-                                                    Border
-                                                </Badge>
-                                            )}
-                                            {preset.shadow && (
-                                                <Badge variant="outline" className="text-xs bg-background/40">
-                                                    Shadow
-                                                </Badge>
-                                            )}
+                                                className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                                <div
+                                                    className="w-6 h-6 rounded-md border border-border shadow-sm"
+                                                    style={{backgroundColor: settings.bgColor}}
+                                                ></div>
+                                            </div>
+                                            <div className="flex">
+                                                <Input
+                                                    id="bgColor"
+                                                    type="text"
+                                                    value={settings.bgColor}
+                                                    onChange={(e) => updateSetting("bgColor", e.target.value)}
+                                                    className="h-10 pl-12 pr-24 font-mono text-sm"
+                                                />
+                                                <div className="absolute inset-y-0 right-0 flex items-center">
+                                                    <Input
+                                                        type="color"
+                                                        value={settings.bgColor}
+                                                        onChange={(e) => updateSetting("bgColor", e.target.value)}
+                                                        className="h-10 w-10 border-0 cursor-pointer"
+                                                        style={{padding: 0}}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
 
-                            <div className="bg-accent/30 rounded-lg p-4 mt-4">
-                                <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                                    <Sparkles size={16}/> Pro Tip
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Click on any preset to instantly apply its colors and settings to your RankTag. You
-                                    can still
-                                    customize individual settings after applying a preset.
-                                </p>
-                            </div>
-                        </TabsContent>
-                    </Tabs>
+                                    {/* Gradient */}
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label htmlFor="gradientCheckbox"
+                                                   className="flex items-center gap-2 text-sm">
+                                                <Sparkles size={14}/> Gradient
+                                            </Label>
+                                            <Switch
+                                                id="gradientCheckbox"
+                                                checked={settings.useGradient}
+                                                onCheckedChange={(value) => updateSetting("useGradient", value)}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="relative">
+                                                <div
+                                                    className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                                    <div
+                                                        className="w-6 h-6 rounded-md border border-border shadow-sm"
+                                                        style={{backgroundColor: settings.gradientColor}}
+                                                    ></div>
+                                                </div>
+                                                <div className="flex">
+                                                    <Input
+                                                        id="gradientColor"
+                                                        type="text"
+                                                        value={settings.gradientColor}
+                                                        onChange={(e) => updateSetting("gradientColor", e.target.value)}
+                                                        className="h-10 pl-12 pr-24 font-mono text-sm"
+                                                        disabled={!settings.useGradient}
+                                                    />
+                                                    <div className="absolute inset-y-0 right-0 flex items-center">
+                                                        <Input
+                                                            type="color"
+                                                            value={settings.gradientColor}
+                                                            onChange={(e) => updateSetting("gradientColor", e.target.value)}
+                                                            className="h-10 w-10 border-0 cursor-pointer"
+                                                            style={{padding: 0}}
+                                                            disabled={!settings.useGradient}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="gradientDirection"
+                                                       className="flex items-center gap-2 text-sm">
+                                                    <ArrowDownUp size={14}/> Vertical
+                                                </Label>
+                                                <Switch
+                                                    id="gradientDirection"
+                                                    checked={settings.gradientDirection}
+                                                    onCheckedChange={(value) => updateSetting("gradientDirection", value)}
+                                                    disabled={!settings.useGradient}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Border */}
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label htmlFor="borderCheckbox" className="flex items-center gap-2 text-sm">
+                                                <Layers size={14}/> Border
+                                            </Label>
+                                            <Switch
+                                                id="borderCheckbox"
+                                                checked={settings.addBorder}
+                                                onCheckedChange={(value) => updateSetting("addBorder", value)}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="relative">
+                                                <div
+                                                    className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                                    <div
+                                                        className="w-6 h-6 rounded-md border border-border shadow-sm"
+                                                        style={{backgroundColor: settings.borderColor}}
+                                                    ></div>
+                                                </div>
+                                                <div className="flex">
+                                                    <Input
+                                                        id="borderColor"
+                                                        type="text"
+                                                        value={settings.borderColor}
+                                                        onChange={(e) => updateSetting("borderColor", e.target.value)}
+                                                        className="h-10 pl-12 pr-24 font-mono text-sm"
+                                                        disabled={!settings.addBorder}
+                                                    />
+                                                    <div className="absolute inset-y-0 right-0 flex items-center">
+                                                        <Input
+                                                            type="color"
+                                                            value={settings.borderColor}
+                                                            onChange={(e) => updateSetting("borderColor", e.target.value)}
+                                                            className="h-10 w-10 border-0 cursor-pointer"
+                                                            style={{padding: 0}}
+                                                            disabled={!settings.addBorder}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <Input
+                                                    id="borderWidth"
+                                                    type="number"
+                                                    value={settings.borderWidth}
+                                                    onChange={(e) => updateSetting("borderWidth", Number(e.target.value))}
+                                                    min={0}
+                                                    className="bg-background/50 h-10"
+                                                    disabled={!settings.addBorder}
+                                                    placeholder="Border width"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Corner Radius */}
+                                    <div>
+                                        <Label htmlFor="cornerRadius"
+                                               className="flex items-center justify-between text-sm mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <RulerIcon size={14}/> Corner Radius
+                                            </div>
+                                            <span className="text-muted-foreground">{settings.cornerRadius}%</span>
+                                        </Label>
+                                        <Slider
+                                            id="cornerRadius"
+                                            value={[settings.cornerRadius]}
+                                            onValueChange={(value) => updateSetting("cornerRadius", value[0])}
+                                            min={0}
+                                            max={50}
+                                            step={1}
+                                            className="mt-2"
+                                        />
+                                    </div>
+
+                                    {/* Image Height */}
+                                    <div>
+                                        <Label htmlFor="imageHeight" className="flex items-center gap-2 text-sm mb-2">
+                                            <RulerIcon size={14}/> Image Height (px)
+                                        </Label>
+                                        <Input
+                                            id="imageHeight"
+                                            type="number"
+                                            value={settings.imageHeight}
+                                            onChange={(e) => updateSetting("imageHeight", Number(e.target.value))}
+                                            min={10}
+                                            className="bg-background/50 h-10"
+                                        />
+                                    </div>
+
+                                    {/* Padding */}
+                                    <div>
+                                        <Label htmlFor="padding" className="flex items-center gap-2 text-sm mb-2">
+                                            <RulerIcon size={14}/> Image Padding (px)
+                                        </Label>
+                                        <Input
+                                            id="padding"
+                                            type="number"
+                                            value={settings.padding}
+                                            onChange={(e) => updateSetting("padding", Number(e.target.value))}
+                                            min={0}
+                                            className="bg-background/50 h-10"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="tagShape" className="flex items-center gap-2 text-sm mb-2">
+                                            <Layout size={14}/> Tag Shape
+                                        </Label>
+                                        <Select
+                                            value={settings.tagShape}
+                                            onValueChange={(value: "rectangle" | "pill" | "hexagon" | "diamond") =>
+                                                updateSetting("tagShape", value)
+                                            }
+                                        >
+                                            <SelectTrigger id="tagShape" className="bg-background/50 h-10">
+                                                <SelectValue placeholder="Select shape"/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="rectangle">Rectangle</SelectItem>
+                                                <SelectItem value="pill">Pill</SelectItem>
+                                                <SelectItem value="hexagon">Hexagon</SelectItem>
+                                                <SelectItem value="diamond">Diamond</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="backgroundPattern"
+                                               className="flex items-center gap-2 text-sm mb-2">
+                                            <Layout size={14}/> Background Pattern
+                                        </Label>
+                                        <Select
+                                            value={settings.backgroundPattern}
+                                            onValueChange={(value) => updateSetting("backgroundPattern", value)}
+                                        >
+                                            <SelectTrigger id="backgroundPattern" className="bg-background/50 h-10">
+                                                <SelectValue placeholder="Select pattern"/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
+                                                <SelectItem value="dots">Dots</SelectItem>
+                                                <SelectItem value="lines">Lines</SelectItem>
+                                                <SelectItem value="grid">Grid</SelectItem>
+                                                <SelectItem value="diagonal">Diagonal</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="effects" className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 color-grid">
+                                    {/* Shadow */}
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label htmlFor="shadowCheckbox" className="flex items-center gap-2 text-sm">
+                                                <Layers size={14}/> Shadow
+                                            </Label>
+                                            <Switch
+                                                id="shadowCheckbox"
+                                                checked={settings.shadow}
+                                                onCheckedChange={(value) => updateSetting("shadow", value)}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="relative">
+                                                <Label htmlFor="shadowColor"
+                                                       className="text-xs text-muted-foreground mb-1 block">
+                                                    Shadow Color
+                                                </Label>
+                                                <div className="flex items-center">
+                                                    <div
+                                                        className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                                        <div
+                                                            className="w-6 h-6 rounded-md border border-border shadow-sm"
+                                                            style={{
+                                                                backgroundColor: settings.shadowColor.startsWith("rgba")
+                                                                    ? `rgba(${settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[1]}, 
+                                                           ${settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[2]}, 
+                                                           ${settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[3]}, 1)`
+                                                                    : settings.shadowColor,
+                                                            }}
+                                                        ></div>
+                                                    </div>
+                                                    <div className="flex w-full">
+                                                        <Input
+                                                            id="shadowColor"
+                                                            type="text"
+                                                            value={settings.shadowColor}
+                                                            onChange={(e) => updateSetting("shadowColor", e.target.value)}
+                                                            className="h-10 pl-12 pr-24 font-mono text-sm"
+                                                            disabled={!settings.shadow}
+                                                        />
+                                                        <div className="absolute inset-y-0 right-0 flex items-center">
+                                                            <Input
+                                                                type="color"
+                                                                value={
+                                                                    settings.shadowColor.startsWith("rgba")
+                                                                        ? `#${Number.parseInt(
+                                                                            settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[1] ||
+                                                                            "0",
+                                                                        )
+                                                                            .toString(16)
+                                                                            .padStart(2, "0")}${Number.parseInt(
+                                                                            settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[2] ||
+                                                                            "0",
+                                                                        )
+                                                                            .toString(16)
+                                                                            .padStart(2, "0")}${Number.parseInt(
+                                                                            settings.shadowColor.match(/rgba$$(\d+),\s*(\d+),\s*(\d+),\s*[\d.]+$$/)?.[3] ||
+                                                                            "0",
+                                                                        )
+                                                                            .toString(16)
+                                                                            .padStart(2, "0")}`
+                                                                        : settings.shadowColor
+                                                                }
+                                                                onChange={(e) => {
+                                                                    // Convert hex to rgba with 0.5 alpha
+                                                                    const hex = e.target.value
+                                                                    const r = Number.parseInt(hex.slice(1, 3), 16)
+                                                                    const g = Number.parseInt(hex.slice(3, 5), 16)
+                                                                    const b = Number.parseInt(hex.slice(5, 7), 16)
+                                                                    updateSetting("shadowColor", `rgba(${r},${g},${b},0.5)`)
+                                                                }}
+                                                                className="h-10 w-10 border-0 cursor-pointer"
+                                                                style={{padding: 0}}
+                                                                disabled={!settings.shadow}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <Label htmlFor="shadowBlur"
+                                                       className="text-xs text-muted-foreground mb-1 block">
+                                                    Blur: {settings.shadowBlur}px
+                                                </Label>
+                                                <Slider
+                                                    id="shadowBlur"
+                                                    value={[settings.shadowBlur]}
+                                                    onValueChange={(value) => updateSetting("shadowBlur", value[0])}
+                                                    min={0}
+                                                    max={20}
+                                                    step={1}
+                                                    disabled={!settings.shadow}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 mt-4">
+                                            <div>
+                                                <Label htmlFor="shadowOffsetX"
+                                                       className="text-xs text-muted-foreground mb-1 block">
+                                                    Offset X: {settings.shadowOffsetX}px
+                                                </Label>
+                                                <Slider
+                                                    id="shadowOffsetX"
+                                                    value={[settings.shadowOffsetX]}
+                                                    onValueChange={(value) => updateSetting("shadowOffsetX", value[0])}
+                                                    min={-10}
+                                                    max={10}
+                                                    step={1}
+                                                    disabled={!settings.shadow}
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Label htmlFor="shadowOffsetY"
+                                                       className="text-xs text-muted-foreground mb-1 block">
+                                                    Offset Y: {settings.shadowOffsetY}px
+                                                </Label>
+                                                <Slider
+                                                    id="shadowOffsetY"
+                                                    value={[settings.shadowOffsetY]}
+                                                    onValueChange={(value) => updateSetting("shadowOffsetY", value[0])}
+                                                    min={-10}
+                                                    max={10}
+                                                    step={1}
+                                                    disabled={!settings.shadow}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-accent/30 rounded-lg p-4">
+                                        <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                            <Sparkles size={16}/> Effect Tips
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                            Shadows can add depth and make your tag stand out. Try combining shadows
+                                            with gradients for a more
+                                            professional look.
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-auto py-1 text-xs"
+                                                onClick={() => {
+                                                    updateSetting("shadow", true)
+                                                    updateSetting("shadowColor", "rgba(0,0,0,0.5)")
+                                                    updateSetting("shadowBlur", 4)
+                                                    updateSetting("shadowOffsetX", 2)
+                                                    updateSetting("shadowOffsetY", 2)
+                                                }}
+                                            >
+                                                Apply Classic Shadow
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-auto py-1 text-xs"
+                                                onClick={() => {
+                                                    updateSetting("shadow", true)
+                                                    updateSetting("shadowColor", "rgba(124,58,237,0.5)")
+                                                    updateSetting("shadowBlur", 8)
+                                                    updateSetting("shadowOffsetX", 0)
+                                                    updateSetting("shadowOffsetY", 0)
+                                                }}
+                                            >
+                                                Apply Glow Effect
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </TabsContent>
+                            <TabsContent value="advanced" className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 color-grid">
+                                    {/* Text Alignment */}
+                                    <div>
+                                        <Label htmlFor="textAlign" className="flex items-center gap-2 text-sm mb-2">
+                                            <Type size={14}/> Text Alignment
+                                        </Label>
+                                        <Select
+                                            value={settings.textAlign}
+                                            onValueChange={(value: "left" | "center" | "right") => updateSetting("textAlign", value)}
+                                        >
+                                            <SelectTrigger id="textAlign" className="bg-background/50 h-10">
+                                                <SelectValue placeholder="Select alignment"/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="left">Left</SelectItem>
+                                                <SelectItem value="center">Center</SelectItem>
+                                                <SelectItem value="right">Right</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {/* Letter Spacing */}
+                                    <div>
+                                        <Label htmlFor="letterSpacing"
+                                               className="flex items-center justify-between text-sm mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <Type size={14}/> Letter Spacing
+                                            </div>
+                                            <span className="text-muted-foreground">{settings.letterSpacing}</span>
+                                        </Label>
+                                        <Slider
+                                            id="letterSpacing"
+                                            value={[settings.letterSpacing]}
+                                            onValueChange={(value) => updateSetting("letterSpacing", value[0])}
+                                            min={0}
+                                            max={10}
+                                            step={1}
+                                            className="mt-2"
+                                        />
+                                    </div>
+
+                                    {/* Animation */}
+                                    <div>
+                                        <Label htmlFor="animation" className="flex items-center gap-2 text-sm mb-2">
+                                            <Sparkles size={14}/> Animation Effect
+                                        </Label>
+                                        <Select
+                                            value={settings.animation}
+                                            onValueChange={(value: "none" | "pulse" | "bounce" | "shake" | "glow") =>
+                                                updateSetting("animation", value)
+                                            }
+                                        >
+                                            <SelectTrigger id="animation" className="bg-background/50 h-10">
+                                                <SelectValue placeholder="Select animation"/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
+                                                <SelectItem value="pulse">Pulse</SelectItem>
+                                                <SelectItem value="bounce">Bounce</SelectItem>
+                                                <SelectItem value="shake">Shake</SelectItem>
+                                                <SelectItem value="glow">Glow</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="bg-accent/30 rounded-lg p-4">
+                                        <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                            <Sparkles size={16}/> Advanced Tips
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                            Animations can make your tag stand out in dynamic environments. Letter
+                                            spacing can improve
+                                            readability for certain fonts and styles.
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-auto py-1 text-xs"
+                                                onClick={() => {
+                                                    updateSetting("animation", "glow")
+                                                    updateSetting("shadow", true)
+                                                    updateSetting("shadowColor", "rgba(124,58,237,0.5)")
+                                                    updateSetting("shadowBlur", 8)
+                                                }}
+                                            >
+                                                Apply Glow Animation
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-auto py-1 text-xs"
+                                                onClick={() => {
+                                                    updateSetting("letterSpacing", 3)
+                                                    updateSetting("textTransform", "uppercase")
+                                                }}
+                                            >
+                                                Apply Spaced Text
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="presets" className="space-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                    {presets.map((preset, index) => (
+                                        <div
+                                            key={index}
+                                            className="border border-border rounded-lg p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                                            onClick={() => applyPreset(preset)}
+                                        >
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div
+                                                    className="w-8 h-8 rounded-md"
+                                                    style={{
+                                                        background: preset.useGradient
+                                                            ? `linear-gradient(to right, ${preset.bgColor}, ${preset.gradientColor})`
+                                                            : preset.bgColor,
+                                                        border: preset.addBorder ? `2px solid ${preset.borderColor}` : "none",
+                                                        boxShadow: preset.shadow ? `0 0 8px ${preset.shadowColor || "rgba(0,0,0,0.5)"}` : "none",
+                                                    }}
+                                                />
+                                                <h3 className="font-medium">{preset.name}</h3>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <Badge variant="outline" className="text-xs bg-background/40">
+                                                    {preset.useGradient ? "Gradient" : "Solid"}
+                                                </Badge>
+                                                {preset.addBorder && (
+                                                    <Badge variant="outline" className="text-xs bg-background/40">
+                                                        Border
+                                                    </Badge>
+                                                )}
+                                                {preset.shadow && (
+                                                    <Badge variant="outline" className="text-xs bg-background/40">
+                                                        Shadow
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="bg-accent/30 rounded-lg p-4 mt-4">
+                                    <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                        <Sparkles size={16}/> Pro Tip
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Click on any preset to instantly apply its colors and settings to your RankTag.
+                                        You can still
+                                        customize individual settings after applying a preset.
+                                    </p>
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+                    )}
                 </CardContent>
             </Card>
 
@@ -2186,9 +2658,9 @@ export default function RankTagGenerator() {
                             <p className="flex items-start">
                                 <span className="mr-2 mt-0.5">✓</span>
                                 <span>
-                  Die Animation wurde erfolgreich als GIF exportiert und kann jetzt in deinen Anwendungen verwendet
-                  werden.
-                </span>
+                                    Die Animation wurde erfolgreich als GIF exportiert und kann jetzt in deinen Anwendungen verwendet
+                                    werden.
+                                </span>
                             </p>
                         </div>
                     </div>
@@ -2202,4 +2674,3 @@ export default function RankTagGenerator() {
         </div>
     )
 }
-
